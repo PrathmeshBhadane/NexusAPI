@@ -11,6 +11,7 @@ volumes:
   redis_data:
   rabbitmq_data:
 
+
 services:
 
   # ─── Infrastructure ───────────────────────────────────────────
@@ -26,7 +27,7 @@ services:
     networks:
       - aiplatform-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U auth_user -d auth_db"]
+      test: [ "CMD-SHELL", "pg_isready -U auth_user -d auth_db" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -42,7 +43,7 @@ services:
     networks:
       - aiplatform-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ml_user -d ml_db"]
+      test: [ "CMD-SHELL", "pg_isready -U ml_user -d ml_db" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -58,7 +59,7 @@ services:
     networks:
       - aiplatform-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U data_user -d data_db"]
+      test: [ "CMD-SHELL", "pg_isready -U data_user -d data_db" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -70,7 +71,7 @@ services:
     networks:
       - aiplatform-network
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -87,7 +88,7 @@ services:
     networks:
       - aiplatform-network
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -110,7 +111,7 @@ services:
     networks:
       - aiplatform-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8001/health" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -133,7 +134,7 @@ services:
     networks:
       - aiplatform-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8002/health" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -142,14 +143,14 @@ services:
     build: ./ai-service
     environment:
       REDIS_URL: redis://redis:6379
-      GROQ_API_KEY: your-groq-api-key-here
+      GROQ_API_KEY: ${GROQ_API_KEY}
     depends_on:
       redis:
         condition: service_healthy
     networks:
       - aiplatform-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8003/health" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -169,7 +170,7 @@ services:
     networks:
       - aiplatform-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
+      test: [ "CMD", "curl", "-f", "http://localhost:8004/health" ]
       interval: 10s
       timeout: 5s
       retries: 5
