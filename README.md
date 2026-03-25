@@ -2,6 +2,27 @@
 
 Welcome to the **AI Microservices Platform**! This repository is a monolithic ecosystem containing a highly optimized AI API backend cluster and a beautiful Next.js self-service Developer Portal.
 
+## 📁 Project Structure
+
+```text
+aiplatformv1/
+├── ai_api_platform/          # Python FastAPI Backend Cluster
+│   ├── ai-service/           # Generative AI inference (Groq/Claude)
+│   ├── auth-service/         # User auth & API key management
+│   ├── data-service/         # CSV/Excel data processing
+│   ├── gateway/              # API Gateway & Rate Limiting
+│   ├── ml-service/           # Async Machine Learning jobs
+│   ├── docker-compose.yml    # Production container orchestration
+│   └── docker-compose.dev.yml# Local Database & Auth mapping
+├── frontend/                 # Next.js 15 Developer Dashboard
+│   ├── src/app/              # Next.js App Router (Pages, UI)
+│   ├── src/lib/              # API client & abstractions
+│   └── public/               # Static assets
+└── developer_test_kit/       # API Key Validation scripts
+    ├── test_api.py           # Verification script for developers
+    └── requirements.txt      # Script dependencies
+```
+
 ---
 
 # 🚀 AI Platform Architecture Deep Dive (Backend)
