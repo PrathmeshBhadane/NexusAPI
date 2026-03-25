@@ -1,0 +1,210 @@
+version: '3.8'
+
+networks:
+  aiplatform-network:
+    driver: bridge
+
+volumes:
+  auth_postgres_data:
+  ml_postgres_data:
+  data_postgres_data:
+  redis_data:
+  rabbitmq_data:
+
+services:
+
+  # ─── Infrastructure ───────────────────────────────────────────
+
+  auth-db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: auth_user
+      POSTGRES_PASSWORD: auth_pass
+    volumes:
+      - auth_postgres_data:/var/lib/postgresql/data
+    networks:
+      - aiplatform-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U auth_user -d auth_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ml-db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ml_db
+      POSTGRES_USER: ml_user
+      POSTGRES_PASSWORD: ml_pass
+    volumes:
+      - ml_postgres_data:/var/lib/postgresql/data
+    networks:
+      - aiplatform-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ml_user -d ml_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  data-db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: data_db
+      POSTGRES_USER: data_user
+      POSTGRES_PASSWORD: data_pass
+    volumes:
+      - data_postgres_data:/var/lib/postgresql/data
+    networks:
+      - aiplatform-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U data_user -d data_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    networks:
+      - aiplatform-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: rabbit_user
+      RABBITMQ_DEFAULT_PASS: rabbit_pass
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    ports:
+      - "15672:15672"
+    networks:
+      - aiplatform-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Services ─────────────────────────────────────────────────
+
+  auth-service:
+    build: ./auth-service
+    environment:
+      DATABASE_URL: postgresql+asyncpg://auth_user:auth_pass@auth-db:5432/auth_db
+      REDIS_URL: redis://redis:6379
+      SECRET_KEY: super-secret-key-change-in-production
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
+    depends_on:
+      auth-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - aiplatform-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ml-service:
+    build: ./ml-service
+    environment:
+      DATABASE_URL: postgresql+asyncpg://ml_user:ml_pass@ml-db:5432/ml_db
+      REDIS_URL: redis://redis:6379
+      RABBITMQ_URL: amqp://rabbit_user:rabbit_pass@rabbitmq:5672/
+    depends_on:
+      ml-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    volumes:
+      - ./ml-service/saved_models:/app/saved_models
+    networks:
+      - aiplatform-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ai-service:
+    build: ./ai-service
+    environment:
+      REDIS_URL: redis://redis:6379
+      GROQ_API_KEY: your-groq-api-key-here
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - aiplatform-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  data-service:
+    build: ./data-service
+    environment:
+      DATABASE_URL: postgresql+asyncpg://data_user:data_pass@data-db:5432/data_db
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      data-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./data-service/uploads:/app/uploads
+    networks:
+      - aiplatform-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  gateway:
+    build: ./gateway
+    environment:
+      REDIS_URL: redis://redis:6379
+      AUTH_SERVICE_URL: http://auth-service:8001
+      ML_SERVICE_URL: http://ml-service:8002
+      AI_SERVICE_URL: http://ai-service:8003
+      DATA_SERVICE_URL: http://data-service:8004
+      SECRET_KEY: super-secret-key-change-in-production
+      ALGORITHM: HS256
+    ports:
+      - "8000:8000"
+    depends_on:
+      auth-service:
+        condition: service_healthy
+      ml-service:
+        condition: service_healthy
+      ai-service:
+        condition: service_healthy
+      data-service:
+        condition: service_healthy
+    networks:
+      - aiplatform-network
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - gateway
+    networks:
+      - aiplatform-network

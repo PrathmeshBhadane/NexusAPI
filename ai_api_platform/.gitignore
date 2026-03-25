@@ -1,0 +1,14 @@
+
+docker-compose.dev.yml
+.env
+*/.env
+**/__pycache__/
+**/*.pyc
+**/saved_models/
+**/uploads/
+node_modules/
+.next/
+
+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
+
+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# ai_api_platform
